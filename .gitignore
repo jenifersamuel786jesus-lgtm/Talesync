@@ -1,0 +1,6 @@
+# Dependencies and local environments
+node_modules/
+ai-worker/.venv/
+
+# Local packages/bundles
+*.appxbundle
