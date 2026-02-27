@@ -1,4 +1,6 @@
 import ipaddress
+import hashlib
+import math
 import os
 import re
 import tempfile
@@ -12,8 +14,6 @@ import spacy
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
-from sentence_transformers import SentenceTransformer
-from transformers import pipeline
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(dotenv_path=ROOT_DIR / ".env", encoding="utf-8-sig")
@@ -33,11 +33,6 @@ DEPLOY_ENV = (os.getenv("VERCEL_ENV") or os.getenv("NODE_ENV") or "").strip().lo
 IS_PRODUCTION = DEPLOY_ENV == "production"
 
 english_ner = spacy.load(os.getenv("SPACY_MODEL", "en_core_web_sm"))
-embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-try:
-  multilingual_ner = pipeline("token-classification", model=MULTI_NER_MODEL, aggregation_strategy="simple")
-except Exception:
-  multilingual_ner = None
 
 
 class ProcessRequest(BaseModel):
@@ -78,19 +73,6 @@ def extract_dates(text: str) -> List[str]:
 def extract_entities(text: str, language: str) -> Dict[str, List[str]]:
   people, places, dates = [], [], []
 
-  try:
-    if multilingual_ner:
-      results = multilingual_ner(text)
-      for ent in results:
-        label = ent.get("entity_group", "")
-        word = ent.get("word", "")
-        if label in {"PER", "PERSON"}:
-          people.append(word)
-        elif label in {"LOC", "LOCATION"}:
-          places.append(word)
-  except Exception:
-    pass
-
   if language == "en":
     doc = english_ner(text)
     for ent in doc.ents:
@@ -109,6 +91,24 @@ def extract_entities(text: str, language: str) -> Dict[str, List[str]]:
     "places": clean_items(places, blocked_words),
     "dates": clean_items(dates, set()),
   }
+
+
+def lightweight_embedding(text: str, dim: int = 256) -> List[float]:
+  if not text:
+    return []
+
+  vec = [0.0] * dim
+  tokens = re.findall(r"\w+", text.lower())
+  for token in tokens:
+    h = hashlib.md5(token.encode("utf-8")).hexdigest()
+    idx = int(h[:8], 16) % dim
+    sign = 1.0 if (int(h[8:10], 16) % 2 == 0) else -1.0
+    vec[idx] += sign
+
+  norm = math.sqrt(sum(v * v for v in vec))
+  if norm == 0:
+    return []
+  return [v / norm for v in vec]
 
 
 def detect_topic(text: str) -> str:
@@ -237,10 +237,7 @@ def process_memory(payload: ProcessRequest, x_worker_secret: str = Header(defaul
     transcript, language = transcribe_audio(payload.audioUrl)
     entities = extract_entities(transcript, language)
     topic = detect_topic(transcript)
-    try:
-      embedding = embedder.encode(transcript).tolist() if transcript else []
-    except Exception:
-      embedding = []
+    embedding = lightweight_embedding(transcript)
 
     callback_payload = {
       "transcript": transcript,
