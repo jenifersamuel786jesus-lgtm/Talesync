@@ -1,4 +1,4 @@
-﻿import { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { completeUpload, createMemoryDraft, uploadMemoryAudio } from "../services/memory";
 
@@ -14,6 +14,31 @@ function getSupportedAudioConfig() {
     if (window.MediaRecorder?.isTypeSupported?.(item.mimeType)) return item;
   }
   return { mimeType: "", ext: "webm" };
+}
+
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="record-icon" aria-hidden="true">
+      <path d="M12 15a4 4 0 0 0 4-4V7a4 4 0 0 0-8 0v4a4 4 0 0 0 4 4z" fill="currentColor" />
+      <path d="M18 11a1 1 0 1 0-2 0 4 4 0 0 1-8 0 1 1 0 1 0-2 0 6 6 0 0 0 5 5.92V20H9a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2h-2v-3.08A6 6 0 0 0 18 11z" fill="currentColor" />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="record-icon" aria-hidden="true">
+      <rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="record-icon" aria-hidden="true">
+      <path d="M9.2 16.2 5.5 12.5a1 1 0 1 0-1.4 1.4l4.4 4.4a1 1 0 0 0 1.4 0l9.9-9.9a1 1 0 0 0-1.4-1.4z" fill="currentColor" />
+    </svg>
+  );
 }
 
 export default function RecordMemory() {
@@ -73,21 +98,18 @@ export default function RecordMemory() {
         const blob = new Blob(chunksRef.current, { type: finalMimeType });
         const file = new File([blob], `memory-${Date.now()}.${finalExt}`, { type: finalMimeType });
 
-        // Get actual audio duration from the blob
         let audioDurationSec = 0;
         try {
           const audio = new Audio(URL.createObjectURL(blob));
           audioDurationSec = await new Promise((resolve) => {
-            audio.addEventListener('loadedmetadata', () => resolve(Math.round(audio.duration) || 0));
-            audio.addEventListener('error', () => resolve(0));
-            // Fallback timeout in case metadata never loads
+            audio.addEventListener("loadedmetadata", () => resolve(Math.round(audio.duration) || 0));
+            audio.addEventListener("error", () => resolve(0));
             setTimeout(() => resolve(0), 5000);
           });
         } catch {
           audioDurationSec = 0;
         }
 
-        // Create draft first with error handling
         let draft;
         try {
           draft = await createMemoryDraft({ title, isPublic });
@@ -98,12 +120,11 @@ export default function RecordMemory() {
           return;
         }
 
-        const uploaded = await uploadMemoryAudio({ memoryId: draft.memoryId, file, onProgress: setUploadProgress });
+        await uploadMemoryAudio({ memoryId: draft.memoryId, file, onProgress: setUploadProgress });
 
         const done = await completeUpload({
           memoryId: draft.memoryId,
-          audioUrl: uploaded.audioUrl,
-          audioMimeType: uploaded.audioMimeType || finalMimeType,
+          audioMimeType: finalMimeType,
           audioDurationSec
         });
 
@@ -148,12 +169,12 @@ export default function RecordMemory() {
         {error ? <p className="error">{error}</p> : null}
 
         <div className="action-row centered">
-          {status === "Completed." ? <div className="btn-record-circle saved-circle">✓</div> : null}
+          {status === "Completed." ? <div className="btn-record-circle saved-circle"><CheckIcon /></div> : null}
           {!recording && status !== "Completed." ? (
-            <button className="btn-record btn-record-circle" onClick={startRecording} aria-label="Start recording">🎙️</button>
+            <button className="btn-record btn-record-circle" onClick={startRecording} aria-label="Start recording"><MicIcon /></button>
           ) : null}
           {recording ? (
-            <button className="btn-stop btn-record-circle" onClick={stopRecording} aria-label="Stop and save recording">■</button>
+            <button className="btn-stop btn-record-circle" onClick={stopRecording} aria-label="Stop and save recording"><StopIcon /></button>
           ) : null}
         </div>
 

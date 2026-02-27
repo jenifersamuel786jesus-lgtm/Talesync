@@ -1,4 +1,4 @@
-﻿import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import LifeStory from "./pages/LifeStory";
 import LoginSignup from "./pages/LoginSignup";
@@ -16,6 +16,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/auth" element={<LoginSignup />} />
+      <Route path="/public/story/:memoryId" element={<LifeStory publicMode />} />
       <Route
         path="/"
         element={

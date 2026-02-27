@@ -1,9 +1,15 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getUser } from "../services/auth";
-import { deleteMemory, getMemoryById, retryTranscription, setMemoryVisibility } from "../services/memory";
+import {
+  deleteMemory,
+  getMemoryById,
+  getPublicMemoryById,
+  retryTranscription,
+  setMemoryVisibility
+} from "../services/memory";
 
-export default function LifeStory() {
+export default function LifeStory({ publicMode = false }) {
   const { memoryId } = useParams();
   const [memory, setMemory] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -17,27 +23,32 @@ export default function LifeStory() {
 
     const loadMemory = async () => {
       try {
-        const res = await getMemoryById(memoryId);
+        const res = publicMode ? await getPublicMemoryById(memoryId) : await getMemoryById(memoryId);
         if (cancelled) return;
         setMemory(res.memory);
-        if (res.memory.status === "completed" && timer) clearInterval(timer);
+
+        if (res.memory.status === "completed" && timer) {
+          clearInterval(timer);
+        }
       } catch {
         if (!cancelled) setNotice("Unable to refresh story right now.");
       }
     };
 
     loadMemory();
-    timer = setInterval(loadMemory, 3000);
+    if (!publicMode) {
+      timer = setInterval(loadMemory, 3000);
+    }
 
     return () => {
       cancelled = true;
       if (timer) clearInterval(timer);
     };
-  }, [memoryId]);
+  }, [memoryId, publicMode]);
 
   if (!memory) return <main className="page"><p>Loading memory...</p></main>;
 
-  const isOwner = String(memory.userId) === String(user?.id);
+  const isOwner = !publicMode && String(memory.userId) === String(user?.id);
   const created = new Date(memory.createdAt || Date.now()).toLocaleDateString(undefined, {
     year: "numeric",
     month: "long",
@@ -78,7 +89,7 @@ export default function LifeStory() {
   }
 
   async function handleShare() {
-    const url = `${window.location.origin}/story/${memory._id}`;
+    const url = `${window.location.origin}/public/story/${memory._id}`;
     if (navigator.share) {
       await navigator.share({ title: memory.title || memory.topic || "Talesync Story", text: "Listen to this story", url });
       return;
@@ -118,12 +129,12 @@ export default function LifeStory() {
         <p className="story-text">{memory.transcript || "Still processing your story..."}</p>
 
         <div className="tags story-tags">
-          {memory.entities?.places?.map((item) => <span key={`place-${item}`} className="tag tag-place">📍 {item}</span>)}
-          {memory.entities?.people?.map((item) => <span key={`person-${item}`} className="tag tag-person">🧑 {item}</span>)}
-          {memory.entities?.dates?.map((item) => <span key={`date-${item}`} className="tag tag-date">🗓 {item}</span>)}
+          {memory.entities?.places?.map((item) => <span key={`place-${item}`} className="tag tag-place">PLACE {item}</span>)}
+          {memory.entities?.people?.map((item) => <span key={`person-${item}`} className="tag tag-person">PERSON {item}</span>)}
+          {memory.entities?.dates?.map((item) => <span key={`date-${item}`} className="tag tag-date">DATE {item}</span>)}
         </div>
 
-        <Link to={`/chain/${memory._id}`} className="btn-secondary">View Memory Chain</Link>
+        {!publicMode ? <Link to={`/chain/${memory._id}`} className="btn-secondary">View Memory Chain</Link> : null}
       </section>
     </main>
   );

@@ -28,6 +28,9 @@ WORKER_SECRET = (
 API_CALLBACK_BASE = os.getenv("API_CALLBACK_BASE", "http://localhost:8080/api/uploads/worker-callback")
 MULTI_NER_MODEL = os.getenv("NER_MODEL", "Babelscape/wikineural-multilingual-ner")
 ASSEMBLYAI_API_KEY = (os.getenv("ASSEMBLYAI_API_KEY") or "").strip()
+ALLOW_LOCAL_AUDIO_FETCH = (os.getenv("ALLOW_LOCAL_AUDIO_FETCH") or "").strip().lower() == "true"
+DEPLOY_ENV = (os.getenv("VERCEL_ENV") or os.getenv("NODE_ENV") or "").strip().lower()
+IS_PRODUCTION = DEPLOY_ENV == "production"
 
 english_ner = spacy.load(os.getenv("SPACY_MODEL", "en_core_web_sm"))
 embedder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
@@ -110,13 +113,13 @@ def extract_entities(text: str, language: str) -> Dict[str, List[str]]:
 
 def detect_topic(text: str) -> str:
   text_lower = text.lower()
-  if any(word in text_lower for word in ["war", "army", "soldier", "battle", "????"]):
+  if any(word in text_lower for word in ["war", "army", "soldier", "battle"]):
     return "History and Service"
-  if any(word in text_lower for word in ["school", "college", "teacher", "study", "?????", "???????"]):
+  if any(word in text_lower for word in ["school", "college", "teacher", "study"]):
     return "Education Journey"
-  if any(word in text_lower for word in ["mother", "father", "family", "children", "?????", "?????", "?????????"]):
+  if any(word in text_lower for word in ["mother", "father", "family", "children"]):
     return "Family Life"
-  if any(word in text_lower for word in ["work", "factory", "job", "company", "????"]):
+  if any(word in text_lower for word in ["work", "factory", "job", "company"]):
     return "Work and Career"
   return "Life Memory"
 
@@ -157,7 +160,6 @@ def transcribe_with_assemblyai(audio_url: str) -> tuple[str, str]:
   }
   create_payload = {
     "audio_url": audio_url,
-    # speech_model is deprecated on AssemblyAI API; use speech_models list.
     "speech_models": ["universal-2"],
     "language_detection": True,
   }
@@ -197,8 +199,12 @@ def transcribe_audio(url: str) -> tuple[str, str]:
 
   temp_path = None
   try:
-    source_url = url
     parsed = urlparse(url)
+    allow_private_fetch = ALLOW_LOCAL_AUDIO_FETCH or not IS_PRODUCTION
+    if is_private_or_local_host(parsed.hostname or "") and not allow_private_fetch:
+      raise RuntimeError("Blocked private/local audio URL")
+
+    source_url = url
     if is_private_or_local_host(parsed.hostname or ""):
       with tempfile.NamedTemporaryFile(suffix=".audio", delete=False) as tmp:
         temp_path = tmp.name
@@ -268,5 +274,3 @@ def process_memory(payload: ProcessRequest, x_worker_secret: str = Header(defaul
       timeout=60,
     )
     raise HTTPException(status_code=500, detail=str(exc))
-
-

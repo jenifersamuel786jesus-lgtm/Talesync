@@ -2,5 +2,12 @@
 node_modules/
 ai-worker/.venv/
 
+# Build artifacts
+client/dist/
+
+# Runtime data
+server/uploads/
+ai-worker/app/__pycache__/
+
 # Local packages/bundles
 *.appxbundle

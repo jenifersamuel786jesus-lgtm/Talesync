@@ -154,12 +154,17 @@ h3 {
   width: 220px;
   height: 220px;
   border-radius: 50%;
-  font-size: 6.2rem;
   padding: 0;
   display: grid;
   place-items: center;
   line-height: 1;
   box-shadow: 0 24px 38px rgba(30, 42, 37, 0.23);
+}
+
+.record-icon {
+  width: 56%;
+  height: 56%;
+  display: block;
 }
 
 .saved-circle {

@@ -1,4 +1,4 @@
-﻿import api from "./api";
+import api from "./api";
 
 export async function createMemoryDraft(payload = {}) {
   const { data } = await api.post("/memories", payload);
@@ -33,6 +33,11 @@ export async function getMyMemories() {
 
 export async function getMemoryById(memoryId) {
   const { data } = await api.get(`/memories/${memoryId}`);
+  return data;
+}
+
+export async function getPublicMemoryById(memoryId) {
+  const { data } = await api.get(`/memories/public/story/${memoryId}`);
   return data;
 }
 

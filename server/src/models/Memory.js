@@ -1,4 +1,4 @@
-﻿import mongoose from "mongoose";
+import mongoose from "mongoose";
 
 const memorySchema = new mongoose.Schema(
   {
@@ -8,6 +8,9 @@ const memorySchema = new mongoose.Schema(
     audioUrl: { type: String },
     audioMimeType: { type: String, default: "audio/webm" },
     audioDurationSec: { type: Number, default: 0 },
+    audioStorage: { type: String, enum: ["cloudinary", "local", "legacy"], default: "legacy" },
+    audioPublicId: { type: String, default: "" },
+    audioFileName: { type: String, default: "" },
     transcript: { type: String, default: "" },
     entities: {
       people: [{ type: String }],

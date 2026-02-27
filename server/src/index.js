@@ -1,9 +1,7 @@
-﻿import cors from "cors";
+import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
 import mongoose from "mongoose";
-import path from "path";
-import { fileURLToPath } from "url";
 import authRoutes from "./routes/auth.routes.js";
 import chainRoutes from "./routes/chain.routes.js";
 import memoryRoutes from "./routes/memory.routes.js";
@@ -12,23 +10,41 @@ import uploadRoutes from "./routes/upload.routes.js";
 dotenv.config();
 
 const app = express();
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+let mongoConnectPromise = null;
 
-// Handle unhandled promise rejections
 process.on("unhandledRejection", (reason, promise) => {
   console.error("Unhandled Rejection at:", promise, "reason:", reason);
 });
 
-// Handle uncaught exceptions
 process.on("uncaughtException", (error) => {
   console.error("Uncaught Exception:", error);
   process.exit(1);
 });
 
+async function ensureMongoConnection() {
+  if (mongoose.connection.readyState === 1) return;
+
+  if (!mongoConnectPromise) {
+    mongoConnectPromise = mongoose.connect(process.env.MONGODB_URI).catch((err) => {
+      mongoConnectPromise = null;
+      throw err;
+    });
+  }
+
+  await mongoConnectPromise;
+}
+
 app.use(cors());
 app.use(express.json({ limit: "10mb" }));
-app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
+
+app.use(async (_req, _res, next) => {
+  try {
+    await ensureMongoConnection();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRoutes);
@@ -40,15 +56,18 @@ app.use((err, _req, res, _next) => {
   return res.status(500).json({ message: "Server error", detail: err?.message || "Unknown error" });
 });
 
-const port = process.env.PORT || 8080;
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(() => {
-    app.listen(port, () => {
-      console.log(`API running on ${port}`);
+if (!process.env.VERCEL) {
+  const port = process.env.PORT || 8080;
+  ensureMongoConnection()
+    .then(() => {
+      app.listen(port, () => {
+        console.log(`API running on ${port}`);
+      });
+    })
+    .catch((err) => {
+      console.error("Mongo connection failed", err);
+      process.exit(1);
     });
-  })
-  .catch((err) => {
-    console.error("Mongo connection failed", err);
-    process.exit(1);
-  });
+}
+
+export default app;

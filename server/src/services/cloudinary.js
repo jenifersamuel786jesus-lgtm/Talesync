@@ -1,4 +1,4 @@
-﻿import { v2 as cloudinary } from "cloudinary";
+import { v2 as cloudinary } from "cloudinary";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -6,7 +6,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-export function uploadAudioBuffer(buffer, { folder, publicId, mimeType }) {
+export function uploadAudioBuffer(buffer, { folder, publicId }) {
   return new Promise((resolve, reject) => {
     try {
       if (!process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET || !process.env.CLOUDINARY_CLOUD_NAME) {
@@ -17,8 +17,8 @@ export function uploadAudioBuffer(buffer, { folder, publicId, mimeType }) {
         {
           folder,
           public_id: publicId,
-          // Cloudinary handles audio uploads under the "video" resource type.
           resource_type: "video",
+          type: "authenticated",
           overwrite: true
         },
         (error, result) => {
@@ -31,5 +31,16 @@ export function uploadAudioBuffer(buffer, { folder, publicId, mimeType }) {
     } catch (err) {
       return reject(err);
     }
+  });
+}
+
+export function getSignedCloudinaryAudioUrl(publicId, ttlSeconds = 900) {
+  const expiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
+  return cloudinary.url(publicId, {
+    resource_type: "video",
+    type: "authenticated",
+    sign_url: true,
+    secure: true,
+    expires_at: expiresAt
   });
 }
