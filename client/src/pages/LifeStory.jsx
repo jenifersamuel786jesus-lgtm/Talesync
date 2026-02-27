@@ -121,7 +121,7 @@ export default function LifeStory({ publicMode = false }) {
         <div className="card-row card-actions">
           <button className="btn-secondary" onClick={handleShare} disabled={busy}>Send / Share</button>
           {isOwner ? <button className="btn-secondary" onClick={handleToggleVisibility} disabled={busy}>{memory.isPublic ? "Make Private" : "Make Public"}</button> : null}
-          {isOwner ? <button className="btn-secondary" onClick={handleRetryTranscription} disabled={busy}>Retry Transcription</button> : null}
+          {isOwner && memory.status === "failed" ? <button className="btn-secondary" onClick={handleRetryTranscription} disabled={busy}>Retry Transcription</button> : null}
           {isOwner ? <button className="btn-stop" onClick={handleDelete} disabled={busy}>Delete</button> : null}
         </div>
 

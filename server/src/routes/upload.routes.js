@@ -244,6 +244,8 @@ router.post("/retry/:memoryId", authMiddleware, asyncHandler(async (req, res) =>
   const memory = await Memory.findById(req.params.memoryId);
   if (!memory) return res.status(404).json({ message: "Memory not found" });
   if (memory.userId.toString() !== req.user.id) return res.status(403).json({ message: "Forbidden" });
+  if (memory.status === "processing") return res.status(409).json({ message: "Transcription already in progress" });
+  if (memory.status === "completed") return res.status(400).json({ message: "Transcription already completed" });
 
   const audioUrl = resolveWorkerAudioUrl(memory, req);
   if (!audioUrl || !isSafeIncomingAudioUrl(audioUrl)) {
