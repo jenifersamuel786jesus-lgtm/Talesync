@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login, signup } from "../services/auth";
 
@@ -18,7 +18,7 @@ export default function LoginSignup() {
       else await login({ email: form.email, password: form.password });
       navigate("/");
     } catch (e) {
-      setError(e.response?.data?.message || "Unable to authenticate.");
+      setError(e.response?.data?.message || e.message || "Unable to authenticate.");
     } finally {
       setLoading(false);
     }
@@ -56,3 +56,4 @@ export default function LoginSignup() {
     </main>
   );
 }
+
